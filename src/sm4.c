@@ -1,3 +1,4 @@
+#include <string.h>  // 为 memcpy 函数添加声明
 #include "sm4.h"
 
 // SM4 S盒
@@ -143,3 +144,93 @@ void sm4_decrypt_block(const unsigned char *input, const uint32_t decSubKeys[SM4
     // 解密过程与加密完全相同，只是使用解密子密钥
     sm4_encrypt_block(input, decSubKeys, output);
 }
+
+size_t sm4_cbc_encrypt(const unsigned char *plaintext, size_t length,
+                      const unsigned char *key, const unsigned char *iv,
+                      unsigned char *ciphertext) {
+    if (!plaintext || !key || !iv || !ciphertext) return 0;
+    
+    uint32_t subKeys[SM4_ROUNDS];
+    encInit(key, subKeys);
+    
+    // 计算填充长度
+    size_t padding_len = SM4_BLOCK_SIZE - (length % SM4_BLOCK_SIZE);
+    size_t total_len = length + padding_len;
+    
+    // 复制初始IV
+    unsigned char block[SM4_BLOCK_SIZE];
+    memcpy(block, iv, SM4_BLOCK_SIZE);
+    
+    // CBC加密
+    size_t pos = 0;
+    while (pos < length) {
+        // XOR with previous block
+        for (int i = 0; i < SM4_BLOCK_SIZE && pos + i < length; i++) {
+            block[i] ^= plaintext[pos + i];
+        }
+        
+        // 如果是最后一个块，需要填充
+        if (length - pos < SM4_BLOCK_SIZE) {
+            for (size_t i = length - pos; i < SM4_BLOCK_SIZE; i++) {
+                block[i] ^= (unsigned char)padding_len;
+            }
+        }
+        
+        // 加密当前块
+        sm4_encrypt_block(block, subKeys, ciphertext + pos);
+        
+        // 更新下一轮的IV
+        memcpy(block, ciphertext + pos, SM4_BLOCK_SIZE);
+        pos += SM4_BLOCK_SIZE;
+    }
+    
+    return total_len;
+}
+
+size_t sm4_cbc_decrypt(const unsigned char *ciphertext, size_t length,
+                      const unsigned char *key, const unsigned char *iv,
+                      unsigned char *plaintext) {
+    if (!ciphertext || !key || !iv || !plaintext || length % SM4_BLOCK_SIZE != 0) 
+        return 0;
+    
+    uint32_t subKeys[SM4_ROUNDS];
+    decInit(key, subKeys);
+    
+    unsigned char prev_block[SM4_BLOCK_SIZE];
+    unsigned char curr_block[SM4_BLOCK_SIZE];
+    memcpy(prev_block, iv, SM4_BLOCK_SIZE);
+    
+    size_t pos = 0;
+    while (pos < length) {
+        // 解密当前块
+        sm4_decrypt_block(ciphertext + pos, subKeys, curr_block);
+        
+        // XOR with previous block
+        for (int i = 0; i < SM4_BLOCK_SIZE; i++) {
+            plaintext[pos + i] = curr_block[i] ^ prev_block[i];
+        }
+        
+        // 保存当前密文块作为下一轮的IV
+        memcpy(prev_block, ciphertext + pos, SM4_BLOCK_SIZE);
+        pos += SM4_BLOCK_SIZE;
+    }
+    
+    // 处理填充
+    unsigned char padding_len = plaintext[length - 1];
+    if (padding_len <= SM4_BLOCK_SIZE) {
+        return length - padding_len;
+    }
+    
+    return length;
+}
+
+void encInit(const unsigned char key[SM4_KEY_SIZE], uint32_t encSubKeys[SM4_ROUNDS])
+{
+    sm4_make_enc_subkeys(key, encSubKeys);
+}
+
+void decInit(const unsigned char key[SM4_KEY_SIZE], uint32_t decSubKeys[SM4_ROUNDS])
+{
+    sm4_make_dec_subkeys(key, decSubKeys);
+}
+

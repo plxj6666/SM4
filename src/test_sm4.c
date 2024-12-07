@@ -75,7 +75,7 @@ void test_sm4_correctness()
     }
 }
 
-void encInit(unsigned char key[SM4_KEY_SIZE], uint32_t encSubKeys[SM4_ROUNDS])
+void test_encInit(unsigned char key[SM4_KEY_SIZE], uint32_t encSubKeys[SM4_ROUNDS])
 {
     srand((unsigned int)time(NULL));
     // random key
@@ -91,7 +91,7 @@ void encInit(unsigned char key[SM4_KEY_SIZE], uint32_t encSubKeys[SM4_ROUNDS])
     }
 }
 
-void decInit(unsigned char key[SM4_KEY_SIZE], uint32_t decSubKeys[SM4_ROUNDS])
+void test_decInit(unsigned char key[SM4_KEY_SIZE], uint32_t decSubKeys[SM4_ROUNDS])
 {
     srand((unsigned int)time(NULL));
     // random key
@@ -126,16 +126,16 @@ void test_sm4_performance()
     uint32_t decSubKeys[SM4_ROUNDS];
 
     // Perform performance test
-    encInit(key, encSubKeys);
+    test_encInit(key, encSubKeys);
     sm4_encrypt_block(plaintext, encSubKeys, ciphertext);
     BPS_BENCH_START("SM4 encryption", BENCHS);
-    BPS_BENCH_ITEM(encInit(key, encSubKeys), sm4_encrypt_block(ciphertext, encSubKeys, ciphertext), ROUNDS);
+    BPS_BENCH_ITEM(test_encInit(key, encSubKeys), sm4_encrypt_block(ciphertext, encSubKeys, ciphertext), ROUNDS);
     BPS_BENCH_FINAL(SM4_BLOCK_BITS);
 
-    decInit(key, decSubKeys);
+    test_decInit(key, decSubKeys);
     sm4_decrypt_block(ciphertext, decSubKeys, decrypted);
     BPS_BENCH_START("SM4 decryption", BENCHS);
-    BPS_BENCH_ITEM(decInit(key,decSubKeys), sm4_decrypt_block(decrypted, decSubKeys, decrypted), ROUNDS);
+    BPS_BENCH_ITEM(test_decInit(key,decSubKeys), sm4_decrypt_block(decrypted, decSubKeys, decrypted), ROUNDS);
     BPS_BENCH_FINAL(SM4_BLOCK_BITS);
 }
 
